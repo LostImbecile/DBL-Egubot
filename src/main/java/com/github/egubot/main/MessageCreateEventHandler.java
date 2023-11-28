@@ -14,6 +14,7 @@ import org.javacord.api.listener.message.MessageCreateListener;
 
 import com.github.egubot.build.AutoRespond;
 import com.github.egubot.build.LegendsDatabase;
+import com.github.egubot.build.OnlineDataManager;
 import com.github.egubot.build.RollTemplates;
 import com.github.egubot.features.LegendsRoll;
 import com.github.egubot.features.LegendsSearch;
@@ -34,6 +35,7 @@ public class MessageCreateEventHandler implements MessageCreateListener {
 	private String sirioChannelID = KeyManager.getID("Sirio_Msg_Channel_ID");
 	private String gpt2ChannelID = KeyManager.getID("GPT2_Channel_ID");
 	private String timerLengthMessage = KeyManager.getID("Dead_Chat_Timer_Msg");
+	private String wheelChannelID = KeyManager.getID("Wheel_Channel_ID");
 	private String sirioMsgContent;
 
 	private boolean isAnimated = true;
@@ -183,7 +185,32 @@ public class MessageCreateEventHandler implements MessageCreateListener {
 		try {
 			System.out.println("\nFetching characters from dblegends.net...");
 			legendsWebsite = new LegendsDatabase();
-			System.out.println("Character database was successfully built!");
+			if (legendsWebsite.isDataFetchSuccessfull()) {
+				System.out.println("Character database was successfully built!\nWebsite Backup uploading...");
+				
+				// Upload current website HTML as backup
+				new Thread(() -> {
+					try {
+						new OnlineDataManager(api, "Website_Backup_Msg_ID", "website_backup",
+								LegendsDatabase.getWebsiteAsInputStream(), false).writeData(null);
+					} catch (Exception e) {
+
+					}
+					
+				}).start();
+
+			} else {
+				System.err.println("Character database missing information. Trying Backup...");
+
+				OnlineDataManager backup = new OnlineDataManager(api, "Website_Backup_Msg_ID",
+						"Website Backup", LegendsDatabase.getWebsiteAsInputStream(), true);
+				
+				legendsWebsite = new LegendsDatabase(backup.getData());
+				System.out.println(legendsWebsite.getTags().size());
+				
+			}
+			
+
 		} catch (IOException e) {
 			System.err.println("\nFailed to build character database. Relevant commands will be inactive.");
 			isRollCommandActive = false;
@@ -238,7 +265,7 @@ public class MessageCreateEventHandler implements MessageCreateListener {
 			if (!testMode && msg.getServer().get().getIdAsString().equals(testServerID))
 				return;
 
-			if (msgText.equalsIgnoreCase("terminate")) {
+			if (lowCaseTxt.equals("terminate")) {
 
 				if (!msg.getAuthor().getIdAsString().equals(siriosID)) {
 					e.getChannel().sendMessage("Terminating...").join();
@@ -246,6 +273,21 @@ public class MessageCreateEventHandler implements MessageCreateListener {
 					new StatusManager(api, testMode).exit();
 
 					System.exit(0);
+				} else {
+					e.getChannel().sendMessage("no");
+				}
+			}
+
+			if (lowCaseTxt.equals("refresh")) {
+
+				if (!msg.getAuthor().getIdAsString().equals(siriosID)) {
+					e.getChannel().sendMessage("Refreshing...").join();
+					System.out.println("\nRefreshing MessageCreateEventHandler.");
+
+					initialiseDataStorage();
+					initialiseWebhooks();
+
+					return;
 				} else {
 					e.getChannel().sendMessage("no");
 				}
@@ -283,6 +325,30 @@ public class MessageCreateEventHandler implements MessageCreateListener {
 						return;
 					}
 
+					if (e.getChannel().getIdAsString().equals(wheelChannelID)) {
+						if (lowCaseTxt.matches("skip")) {
+							e.getChannel().sendMessage("Disabled roll animation :ok_hand:");
+							isAnimated = false;
+							return;
+						}
+
+						if (lowCaseTxt.matches("unskip")) {
+							e.getChannel().sendMessage("Enabled roll animation :thumbs_up:");
+							isAnimated = true;
+							return;
+						}
+
+						if (lowCaseTxt.matches("roll")) {
+							newThread = new Thread(() ->
+
+							legendsRoll.rollCharacters("b-roll6 t1", e.getChannel(), isAnimated)
+
+							);
+							newThread.start();
+							return;
+						}
+					}
+
 					if (lowCaseTxt.matches("disable roll animation(.*)")) {
 						e.getChannel().sendMessage("Disabled");
 						isAnimated = false;
@@ -304,6 +370,7 @@ public class MessageCreateEventHandler implements MessageCreateListener {
 						newThread.start();
 						return;
 					}
+
 				} catch (Exception e1) {
 					e.getChannel().sendMessage("Filter couldn't be parsed <:gokuhuh:1009185335881768970>");
 					return;
