@@ -44,8 +44,14 @@ public class Main {
 
 		}
 
+		try {
+			arguments += args[2].toLowerCase();
+		} catch (IndexOutOfBoundsException e) {
+
+		}
+
 		/*
-		 * Send "test" as the second argument to activate test mode.
+		 * Send "test" as an argument to activate test mode.
 		 * Second condition is to avoid changing your arguments each time
 		 * while running from your compiler, ignored otherwise.
 		 */
@@ -66,6 +72,10 @@ public class Main {
 				// For info about intents check the links at the start of the class
 				api = new DiscordApiBuilder().setToken(token)
 						.addIntents(Intent.MESSAGE_CONTENT, Intent.GUILD_MEMBERS, Intent.GUILD_MESSAGES).login().join();
+				if (api.getServers().isEmpty()) {
+					System.out.println("You can invite the bot by using the following url:\n" + api.createBotInvite());
+					System.out.println("\nPlease invite it before continuing.");
+				}
 			} catch (Exception e1) {
 				System.err.println("\nInvalid token. Exiting.");
 				KeyManager.updateKeys("Discord_API_Key", "-1", KeyManager.tokensFileName);
@@ -92,26 +102,40 @@ public class Main {
 			Scanner input = new Scanner(System.in);
 
 			if (status.isOnline() && !testMode) {
-				System.out.println(
-						"\nAn instance is already online.\n\nIf that isn't the case, type restart below and relaunch.");
+				System.out
+						.println("\nAn instance is already online.\n\nIf that isn't the case, type \"restart\" below.");
 				String st = input.nextLine();
 				if (st.strip().equalsIgnoreCase("restart")) {
+					System.out.println();
 					status.setStatusOffline();
+					status.disconnect();
+					System.out.println("\nRestarting...\n");
+
+					Main.main(args);
+				} else {
+					status.disconnect();
 				}
-				status.disconnect();
+
 			} else {
 
 				System.out.println("You can invite the bot by using the following url:\n" + api.createBotInvite());
 
+				boolean dbLegendsMode;
+				if (arguments.contains("dbl_off")) {
+					dbLegendsMode = false;
+				} else {
+					dbLegendsMode = true;
+				}
 				/*
 				 * Listeners, heart of the bot.
 				 * Customise these yourself, the classes I made are for
 				 * my personal use, best to write your own, but you can
 				 * use these as an example.
 				 */
-				api.addMessageCreateListener(new MessageCreateEventHandler(api, testMode));
+				api.addMessageCreateListener(new MessageCreateEventHandler(api, testMode, dbLegendsMode));
 				api.addReconnectListener(new ReconnectEventHandler(testMode, api));
 				api.addResumeListener(new ResumeEventHandler(testMode, api));
+				api.addLostConnectionListener(new LostConnectionHandler());
 
 				// Refer to the class to change activity or learn how to
 				// control it
@@ -128,9 +152,7 @@ public class Main {
 
 				/*
 				 * This is to use the bot to send your messages
-				 * directly from the console, should be a separate
-				 * class but I can't think of a name for it, so it's
-				 * here instead
+				 * directly from the console.
 				 */
 				if (!arguments.contains("sendmessages")) {
 					if (input.nextLine().equals("password"))
@@ -142,6 +164,8 @@ public class Main {
 
 				status.exit();
 			}
+
+			System.exit(0);
 
 		} catch (MissingIntentException e) {
 			System.err.println("\nMissing intent. Program will exit.");
