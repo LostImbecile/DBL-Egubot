@@ -109,7 +109,7 @@ public class ChatGPT {
 	}
 
 	public static String reformatInput(String txt, String author) {
-		if (txt.toLowerCase().matches("gpt(.*)"))
+		if (txt.toLowerCase().matches("gpt.*"))
 			txt = txt.replaceFirst("gpt", "");
 
 		txt = DiscordAI.jsonify(txt).replaceAll("[^\\x00-\\x7F]", "");

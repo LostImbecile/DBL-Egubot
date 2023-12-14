@@ -11,6 +11,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.regex.Pattern;
 
 import org.javacord.api.DiscordApi;
 import org.javacord.api.entity.message.Message;
@@ -207,12 +208,14 @@ public class OnlineDataManager {
 			String st;
 
 			data.clear();
+			Pattern lockedDataPattern = Pattern.compile("lockeddataindex=(\\d+)$");
+		
 			while ((st = br.readLine()) != null) {
 				st = st.trim().replace("\n", "").replace("é", "e");
-
-				if (st.toLowerCase().matches("lockeddataindex=\\d+$")) {
+				
+				if (lockedDataPattern.matcher(st.toLowerCase()).matches()) {
 					try {
-						this.lockedDataEndIndex = Integer.parseInt(st.replace("lockeddataindex=", ""));
+						this.lockedDataEndIndex = Integer.parseInt(st.replaceAll("\\D", ""));
 					} catch (Exception e) {
 					}
 				} else if (!st.equals(""))
@@ -239,7 +242,7 @@ public class OnlineDataManager {
 				if (!tempDataFile.delete())
 					e.sendMessage("Couldn't update <:sad:1020780174901522442>");
 				else
-					e.sendMessage("Updated <:legudrink:804071006956159008>");
+					e.sendMessage("Updated <:drink:1184466286944735272>");
 			} else {
 				if (!tempDataFile.delete())
 					System.out.println("Couldn't update");
